@@ -1,5 +1,5 @@
 name := "burst-exporter"
-version := "0.2"
+version := "0.3"
 scalaVersion := "2.12.5"
 
 val playWSStandalone = "1.1.6"

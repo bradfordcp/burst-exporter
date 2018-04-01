@@ -69,6 +69,7 @@ class AccountMonitor(conf: Config, account: String) extends Actor with ActorLogg
                 val desc = (js \ "errorDescription").as[String]
 
                 log.error(s"Error code $code: $desc")
+                timers.startSingleTimer(TickKey, PollWallet, conf.getDuration("burst_exporter.fallback_poll_interval"))
               }
               case None => {
                 val account_rs: String = (js \ "accountRS").as[String]
