@@ -1,11 +1,15 @@
-import scala.concurrent.duration._
-import DurationConverter._
+package network_monitor
+
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props, Timers}
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import io.prometheus.client.Gauge
 import play.api.libs.json.Json
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
+
+import scala.concurrent.duration._
+
+import util.DurationConverter._
 
 object BurstNetworkMonitor {
   def props(conf: Config): Props = Props(new BurstNetworkMonitor(conf))

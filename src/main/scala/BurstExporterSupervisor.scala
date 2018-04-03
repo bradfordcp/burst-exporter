@@ -1,5 +1,9 @@
+import account_monitor.AccountMonitorSupervisor
 import akka.actor.{Actor, ActorLogging, Props}
 import com.typesafe.config.{Config, ConfigFactory}
+import network_monitor.BurstNetworkMonitor
+import pool_monitor.PoolMonitorSupervisor
+import prometheus.MetricsHTTPServer
 
 object BurstExporterSupervisor {
   def props(): Props = Props(new BurstExporterSupervisor)
@@ -17,6 +21,7 @@ class BurstExporterSupervisor extends Actor with ActorLogging {
   override def receive = Actor.emptyBehavior
 
   private val network = context.actorOf(BurstNetworkMonitor.props(conf), "burst-network-monitor")
-  private val http = context.actorOf(PrometheusHTTPServer.props(conf), "http-server")
+  private val http = context.actorOf(MetricsHTTPServer.props(conf), "metrics-http-server")
   private val account_monitor = context.actorOf(AccountMonitorSupervisor.props(conf), "account-monitor-supervisor")
+  private val pool_monitor = context.actorOf(PoolMonitorSupervisor.props(conf), "pool-monitor-supervisor")
 }

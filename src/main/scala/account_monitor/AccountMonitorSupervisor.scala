@@ -1,6 +1,9 @@
-import collection.JavaConverters._
+package account_monitor
+
 import akka.actor.{Actor, ActorLogging, Props}
 import com.typesafe.config.Config
+
+import scala.collection.JavaConverters._
 
 /**
   * Created by Christopher Bradford on 3/31/18.
@@ -10,7 +13,6 @@ object AccountMonitorSupervisor {
 }
 
 class AccountMonitorSupervisor(conf: Config) extends Actor with ActorLogging {
-  import AccountMonitorSupervisor._
 
   override def preStart(): Unit = log.info("Account Monitor Supervisor started")
   override def postStop(): Unit = log.info("Account Monitor Supervisor stopped")

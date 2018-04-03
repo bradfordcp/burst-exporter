@@ -1,11 +1,15 @@
-import scala.concurrent.duration._
+package account_monitor
+
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props, Timers}
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import io.prometheus.client.Gauge
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
-import DurationConverter._
 import play.api.libs.json.Json
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+
+import util.DurationConverter._
+
+import scala.concurrent.duration._
 
 /**
   * Created by Christopher Bradford on 3/31/18.
@@ -37,6 +41,10 @@ object AccountMonitor {
 class AccountMonitor(conf: Config, account: String) extends Actor with ActorLogging with Timers {
   import AccountMonitor._
 
+  private val wallet_url: String = conf.getString("burst_exporter.account_monitoring.wallet_url")
+  private val default_poll_interval: FiniteDuration = conf.getDuration("burst_exporter.default_poll_interval")
+  private val fallback_poll_interval: FiniteDuration = conf.getDuration("burst_exporter.fallback_poll_interval")
+
   override def preStart(): Unit = log.info(s"Account Monitor started: $account")
   override def postStop(): Unit = {
     log.info(s"Account Monitor stopped: $account")
@@ -50,13 +58,13 @@ class AccountMonitor(conf: Config, account: String) extends Actor with ActorLogg
     StandaloneAhcWSClient()(materializer)
   }
 
-  timers.startSingleTimer(TickKey, PollWallet, conf.getDuration("burst_exporter.default_poll_interval"))
+  timers.startSingleTimer(TickKey, PollWallet, default_poll_interval)
 
-  override def receive = {
+  override def receive: Receive = {
     case PollWallet =>
 //      log.info("Received request to pull account state")
 
-      wsClient.url(s"${conf.getString("burst_exporter.burst_network.wallet_url")}/burst?requestType=getAccount&account=$account")
+      wsClient.url(s"$wallet_url/burst?requestType=getAccount&account=$account")
         .withRequestTimeout(10 seconds).get()
         .map(r => {
 //          log.info(s"Request received: ${r.statusText}")
@@ -69,7 +77,7 @@ class AccountMonitor(conf: Config, account: String) extends Actor with ActorLogg
                 val desc = (js \ "errorDescription").as[String]
 
                 log.error(s"Error code $code: $desc")
-                timers.startSingleTimer(TickKey, PollWallet, conf.getDuration("burst_exporter.fallback_poll_interval"))
+                timers.startSingleTimer(TickKey, PollWallet, fallback_poll_interval)
               }
               case None => {
                 val account_rs: String = (js \ "accountRS").as[String]
@@ -82,12 +90,12 @@ class AccountMonitor(conf: Config, account: String) extends Actor with ActorLogg
                 balance_nqt.labels(account_rs, name, account_number).set((js \ "balanceNQT").as[String].toLong)
                 effective_balance_burst.labels(account_rs, name, account_number).set((js \ "effectiveBalanceBURST").as[String].toLong)
 
-                timers.startSingleTimer(TickKey, PollWallet, conf.getDuration("burst_exporter.default_poll_interval"))
+                timers.startSingleTimer(TickKey, PollWallet, default_poll_interval)
               }
             }
           } else {
             log.error(r.body)
-            timers.startSingleTimer(TickKey, PollWallet, conf.getDuration("burst_exporter.fallback_poll_interval"))
+            timers.startSingleTimer(TickKey, PollWallet, fallback_poll_interval)
           }
         })(context.dispatcher)
         .recover({
