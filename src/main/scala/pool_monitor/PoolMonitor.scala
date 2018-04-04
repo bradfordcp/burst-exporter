@@ -75,7 +75,7 @@ class PoolMonitor(conf: Config, account: String) extends Actor with ActorLogging
       val js = Json.parse(message)
 
       if (!js.isInstanceOf[JsArray]) {
-        if (!js.asInstanceOf[JsObject].keys.contains("miner") && !js.asInstanceOf[JsObject].keys.contains("subscriptionSuccess"))
+        if (!js.asInstanceOf[JsObject].keys.contains("scoop") && !js.asInstanceOf[JsObject].keys.contains("subscriptionSuccess"))
           self ! PoolUpdate(
             (js \ "deadline").as[Long],
             (js \ "effectiveCapacity").as[Double],
