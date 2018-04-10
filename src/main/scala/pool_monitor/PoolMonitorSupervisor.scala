@@ -21,5 +21,7 @@ class PoolMonitorSupervisor(conf: Config) extends Actor with ActorLogging {
   // Instantiate a child actor for each account
   private val accounts_to_monitor: List[String] = conf.getStringList("burst_exporter.pool_monitoring.accounts").asScala.toList
 
-  accounts_to_monitor.foreach(account => context.actorOf(PoolMonitor.props(conf, account), account))
+  accounts_to_monitor
+    .map(account => context.actorOf(PoolMonitor.props(conf, account), account))
+    .foreach(actor => actor ! PoolMonitor.Connect())
 }

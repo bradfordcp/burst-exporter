@@ -2,12 +2,14 @@ package pool_monitor
 
 import java.net.URI
 
-import akka.actor.{Actor, ActorLogging, Props, Timers}
+import akka.actor.{ActorLogging, FSM, Props, Timers}
 import com.typesafe.config.Config
 import io.prometheus.client.Gauge
 import org.java_websocket.handshake.ServerHandshake
-import org.joda.time.DateTime
+import util.DurationConverter._
 import play.api.libs.json._
+
+import scala.concurrent.duration._
 
 /**
   * Created by Christopher Bradford on 4/1/18.
@@ -34,44 +36,53 @@ object PoolMonitor {
     .name("burst_pending_balance_nqt").help("Pending Balance NQT")
     .labelNames("account_rs", "name").register()
 
-  case class OnOpen(handshake: ServerHandshake)
-  case class OnClose(code: Int, reason: String, remote: Boolean)
-  case class OnMessage(message: String)
-  case class OnError(ex: Exception)
+  final case class Connect()
+
+  final case class OnOpen(handshake: ServerHandshake)
+  final case class OnClose(code: Int, reason: String, remote: Boolean)
+  final case class OnMessage(message: String)
+  final case class OnError(ex: Exception)
 
   private case class PoolUpdate(last_confirmed_deadline: Long, effective_capacity: Double, historical_share: Double, last_active_block_height: Long, nConf: Int, name: String, pending: Long)
+
+  sealed trait State
+  case object Disconnected extends State
+  case object Connected extends State
+
+  sealed trait Data
+  case object Uninitialized extends Data
+  final case class ActiveClient(ws_client: PoolMonitorWSClient) extends Data
+
+  case object TickKey
 }
 
-class PoolMonitor(conf: Config, account: String) extends Actor with ActorLogging with Timers {
+class PoolMonitor(conf: Config, account: String) extends FSM[PoolMonitor.State, PoolMonitor.Data] with ActorLogging with Timers {
   import PoolMonitor._
 
   private val pool_url: String = conf.getString("burst_exporter.pool_monitoring.pool_url")
-  private val ws_client: PoolMonitorWSClient = new PoolMonitorWSClient(URI.create(pool_url), self)
-  ws_client.connect()
+  private val fallback_poll_interval: FiniteDuration = conf.getDuration("burst_exporter.fallback_poll_interval")
 
-  override def preStart(): Unit = log.info(s"Pool Monitor started: $account")
-  override def postStop(): Unit = log.info(s"Pool Monitor stopped: $account")
+  override def preStart(): Unit = log.info("Pool Monitor started")
 
-  override def receive: Receive = {
-    case PoolUpdate(last_confirmed_deadline, effective_capacity, historical_share, last_active_block_height, nConf, name, pending) => {
-      last_confirmed_deadline_gauge.labels(account, name).set(last_confirmed_deadline)
-      effective_capacity_gauge.labels(account, name).set(effective_capacity)
-      historical_share_gauge.labels(account, name).set(historical_share)
-      last_active_block_height_gauge.labels(account, name).set(last_active_block_height)
-      valid_deadlines_last_360_gauge.labels(account, name).set(nConf)
-      pending_balance_nqt_gauge.labels(account, name).set(pending)
-    }
-    case OnOpen(serverHandshake) =>{
+  startWith(Disconnected, Uninitialized)
+
+  when(Disconnected) {
+    case Event(Connect(), Uninitialized) =>
+      log.info(s"Opening connection to: $pool_url")
+      val ws_client = new PoolMonitorWSClient(URI.create(pool_url), self)
+      ws_client.connect()
+
+      goto(Connected) using ActiveClient(ws_client)
+  }
+
+  when(Connected) {
+    case Event(OnOpen(_), ActiveClient(ws_client)) =>
       log.info(s"Connection opened: $pool_url")
       ws_client.send(account)
-    }
-    case OnClose(code, reason, remote) => {
-      log.info(s"Connection closed: $reason")
-      ws_client.connect()
-    }
-    case OnMessage(message) => {
-//      log.info(s"Received message: $message")
 
+      stay using ActiveClient(ws_client)
+
+    case Event(OnMessage(message), ActiveClient(ws_client)) =>
       val js = Json.parse(message)
 
       if (!js.isInstanceOf[JsArray]) {
@@ -85,9 +96,35 @@ class PoolMonitor(conf: Config, account: String) extends Actor with ActorLogging
             (js \ "name").as[String],
             (js \ "pending").as[Long]
           )
-        }
       }
 
-    case OnError(ex) => log.error(ex.getCause, ex.getMessage)
+      stay using ActiveClient(ws_client)
+
+    case Event(OnClose(_, reason, _), ActiveClient(_)) =>
+      log.info(s"Connection closed: $reason")
+
+      timers.startSingleTimer(TickKey, Connect, fallback_poll_interval)
+
+      goto (Disconnected) using Uninitialized
+
+    case Event(OnError(ex), ActiveClient(_)) =>
+      log.error(ex.getCause, ex.getMessage)
+      throw ex
+  }
+
+  whenUnhandled {
+    case Event(PoolUpdate(last_confirmed_deadline, effective_capacity, historical_share, last_active_block_height, nConf, name, pending), state) =>
+      last_confirmed_deadline_gauge.labels(account, name).set(last_confirmed_deadline)
+      effective_capacity_gauge.labels(account, name).set(effective_capacity)
+      historical_share_gauge.labels(account, name).set(historical_share)
+      last_active_block_height_gauge.labels(account, name).set(last_active_block_height)
+      valid_deadlines_last_360_gauge.labels(account, name).set(nConf)
+      pending_balance_nqt_gauge.labels(account, name).set(pending)
+
+      stay using state
+
+    case Event(event, state) ⇒
+      log.error("received unhandled request {} in state {}/{}", event, stateName, state)
+      stay using state
   }
 }

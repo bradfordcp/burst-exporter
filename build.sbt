@@ -1,5 +1,5 @@
 name := "burst-exporter"
-version := "0.5"
+version := "0.6"
 scalaVersion := "2.12.5"
 
 val akka = "2.5.11"
