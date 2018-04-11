@@ -72,16 +72,16 @@ class PoolMonitor(conf: Config, account: String) extends FSM[PoolMonitor.State, 
       val ws_client = new PoolMonitorWSClient(URI.create(pool_url), self)
       ws_client.connect()
 
-      goto(Connected) using ActiveClient(ws_client)
-  }
+      stay using ActiveClient(ws_client)
 
-  when(Connected) {
     case Event(OnOpen(_), ActiveClient(ws_client)) =>
       log.info(s"Connection opened: $pool_url")
       ws_client.send(account)
 
-      stay using ActiveClient(ws_client)
+      goto(Connected) using ActiveClient(ws_client)
+  }
 
+  when(Connected) {
     case Event(OnMessage(message), ActiveClient(ws_client)) =>
       val js = Json.parse(message)
 
