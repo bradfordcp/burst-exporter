@@ -7,7 +7,9 @@ import org.java_websocket.client.WebSocketClient
 import org.java_websocket.handshake.ServerHandshake
 
 /**
-  * Created by Christopher Bradford on 4/2/18.
+  * Wrapper for a WebSocket client which forwards callbacks as messages to the provided delegate
+  * @param server Websocket URL
+  * @param delegate Actor which should receive the messages
   */
 class PoolMonitorWSClient(server: URI, delegate: ActorRef) extends WebSocketClient(server) {
   override def onOpen(handshakedata: ServerHandshake): Unit = delegate ! PoolMonitor.OnOpen(handshakedata)

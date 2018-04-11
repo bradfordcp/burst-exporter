@@ -6,7 +6,7 @@ import com.typesafe.config.Config
 import scala.collection.JavaConverters._
 
 /**
-  * Created by Christopher Bradford on 3/31/18.
+  * Supervises and starts all AccountMonitor instances
   */
 object AccountMonitorSupervisor {
   def props(conf: Config): Props = Props(new AccountMonitorSupervisor(conf))
@@ -20,7 +20,8 @@ class AccountMonitorSupervisor(conf: Config) extends Actor with ActorLogging {
   override def receive = Actor.emptyBehavior
 
   // Instantiate a child actor for each account
-  private val accounts_to_monitor: List[String] = conf.getStringList("burst_exporter.account_monitoring.accounts").asScala.toList
+  private val accounts_to_monitor: List[String] = conf.getStringList("burst_exporter.account_monitoring.accounts")
+    .asScala.toList
 
   accounts_to_monitor.foreach(account => context.actorOf(AccountMonitor.props(conf, account), account))
 }

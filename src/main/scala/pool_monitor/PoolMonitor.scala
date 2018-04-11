@@ -12,7 +12,8 @@ import play.api.libs.json._
 import scala.concurrent.duration._
 
 /**
-  * Created by Christopher Bradford on 4/1/18.
+  * Monitors a single BURST account participating as part of a pool. The pool's URL is extracted from the configuration
+  * with the account being supplied during instantiation
   */
 object PoolMonitor {
   def props(conf: Config, account: String): Props = Props(new PoolMonitor(conf, account))
@@ -36,27 +37,38 @@ object PoolMonitor {
     .name("burst_pending_balance_nqt").help("Pending Balance NQT")
     .labelNames("account_rs", "name").register()
 
+  // Messages accepted by the Actor
   final case class Connect()
-
   final case class OnOpen(handshake: ServerHandshake)
   final case class OnClose(code: Int, reason: String, remote: Boolean)
   final case class OnMessage(message: String)
   final case class OnError(ex: Exception)
+  private case class PoolUpdate(
+                                 last_confirmed_deadline: Long,
+                                 effective_capacity: Double,
+                                 historical_share: Double,
+                                 last_active_block_height: Long,
+                                 nConf: Int,
+                                 name: String,
+                                 pending: Long)
 
-  private case class PoolUpdate(last_confirmed_deadline: Long, effective_capacity: Double, historical_share: Double, last_active_block_height: Long, nConf: Int, name: String, pending: Long)
-
+  // States the FSM can be in
   sealed trait State
   case object Disconnected extends State
   case object Connected extends State
 
+  // State data that may be passed as part of a state change
   sealed trait Data
   case object Uninitialized extends Data
   final case class ActiveClient(ws_client: PoolMonitorWSClient) extends Data
 
+  // Object to track set timers
   case object TickKey
 }
 
-class PoolMonitor(conf: Config, account: String) extends FSM[PoolMonitor.State, PoolMonitor.Data] with ActorLogging with Timers {
+class PoolMonitor(conf: Config, account: String) extends FSM[PoolMonitor.State, PoolMonitor.Data]
+  with ActorLogging with Timers {
+
   import PoolMonitor._
 
   private val pool_url: String = conf.getString("burst_exporter.pool_monitoring.pool_url")

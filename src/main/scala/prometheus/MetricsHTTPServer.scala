@@ -4,6 +4,9 @@ import akka.actor.{Actor, ActorLogging, Props}
 import com.typesafe.config.Config
 import io.prometheus.client.exporter.HTTPServer
 
+/**
+  * Starts a HTTP server for exposing metrics
+  */
 object MetricsHTTPServer {
   def props(conf: Config): Props = Props(new MetricsHTTPServer(conf))
 }

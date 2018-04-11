@@ -12,7 +12,7 @@ import util.DurationConverter._
 import scala.concurrent.duration._
 
 /**
-  * Created by Christopher Bradford on 3/31/18.
+  * Monitors balances of a specific BURST account address
   */
 object AccountMonitor {
   def props(conf: Config, account: String): Props = Props(new AccountMonitor(conf, account))
@@ -33,8 +33,10 @@ object AccountMonitor {
     .name("burst_effective_balance_burst").help("Effective Balance BURST")
     .labelNames("account_rs", "name", "account").register()
 
+  // Accepted messages
   final case class PollWallet()
 
+  // Object to track timers
   private case object TickKey
 }
 

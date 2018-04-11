@@ -11,26 +11,45 @@ import scala.concurrent.duration._
 
 import util.DurationConverter._
 
+/**
+  * Monitors high level metrics for the entire BURST network
+  */
 object BurstNetworkMonitor {
   def props(conf: Config): Props = Props(new BurstNetworkMonitor(conf))
 
-  private val peers_total_gauge: Gauge = Gauge.build.name("burst_peers_total").help("Total number of peers").register()
-  private val unlocked_accounts_total_gauge: Gauge = Gauge.build.name("burst_unlocked_accounts_total").help("Total number of unlocked accouts").register()
-  private val transfers_total_gauge: Gauge = Gauge.build.name("burst_transfers_total").help("Total number of transfers").register()
-  private val orders_total_gauge: Gauge = Gauge.build.name("burst_orders_total").help("Total number of orders").register()
-  private val transactions_total_gauge: Gauge = Gauge.build.name("burst_transactions_total").help("Total number of transactions").register()
-//  private val cumulative_difficulty_gauge: Gauge = Gauge.build.name("burst_cumulative_difficulty").help("Cumulative difficulty").register() # TODO whittle this down a little more
-  private val assets_total_gauge: Gauge = Gauge.build.name("burst_assets_total").help("Total number of assets").register()
-//  private val effective_balance_nxt_total: Gauge = Gauge.build.name("burst_effective_balance_nxt_total").help("Total effective balance").register()
-  private val accounts_total_gauge: Gauge = Gauge.build.name("burst_accounts_total").help("Total number of accounts").register()
-  private val blocks_total_gauge: Gauge = Gauge.build.name("burst_blocks_total").help("Total number of blocks").register()
-  private val bid_orders_gauge: Gauge = Gauge.build.name("burst_bid_orders_total").help("Total number of bid orders").register()
-  private val aliases_total_gauge: Gauge = Gauge.build.name("burst_aliases_total").help("Total number of aliases").register()
-  private val trades_total_gauge: Gauge = Gauge.build.name("burst_trades_total").help("Total number of trades").register()
-  private val ask_orders_total_gauge: Gauge = Gauge.build.name("burst_ask_orders_total").help("Total number of ask orders").register()
+  private val peers_total_gauge: Gauge = Gauge.build.name("burst_peers_total")
+    .help("Total number of peers").register()
+  private val unlocked_accounts_total_gauge: Gauge = Gauge.build.name("burst_unlocked_accounts_total")
+    .help("Total number of unlocked accouts").register()
+  private val transfers_total_gauge: Gauge = Gauge.build.name("burst_transfers_total")
+    .help("Total number of transfers").register()
+  private val orders_total_gauge: Gauge = Gauge.build.name("burst_orders_total")
+    .help("Total number of orders").register()
+  private val transactions_total_gauge: Gauge = Gauge.build.name("burst_transactions_total")
+    .help("Total number of transactions").register()
+//  private val cumulative_difficulty_gauge: Gauge = Gauge.build.name("burst_cumulative_difficulty")
+// .help("Cumulative difficulty").register() # TODO whittle this down a little more
+  private val assets_total_gauge: Gauge = Gauge.build.name("burst_assets_total")
+  .help("Total number of assets").register()
+//  private val effective_balance_nxt_total: Gauge = Gauge.build.name("burst_effective_balance_nxt_total")
+// .help("Total effective balance").register()
+  private val accounts_total_gauge: Gauge = Gauge.build.name("burst_accounts_total")
+    .help("Total number of accounts").register()
+  private val blocks_total_gauge: Gauge = Gauge.build.name("burst_blocks_total")
+    .help("Total number of blocks").register()
+  private val bid_orders_gauge: Gauge = Gauge.build.name("burst_bid_orders_total")
+    .help("Total number of bid orders").register()
+  private val aliases_total_gauge: Gauge = Gauge.build.name("burst_aliases_total")
+    .help("Total number of aliases").register()
+  private val trades_total_gauge: Gauge = Gauge.build.name("burst_trades_total")
+    .help("Total number of trades").register()
+  private val ask_orders_total_gauge: Gauge = Gauge.build.name("burst_ask_orders_total")
+    .help("Total number of ask orders").register()
 
+  // Messages accepted by the Actor
   final case class PollWallet()
 
+  // Object to track timers
   private case object TickKey
 }
 

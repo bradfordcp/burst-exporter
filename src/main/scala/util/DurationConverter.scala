@@ -1,9 +1,11 @@
 package util
 
+import scala.concurrent.duration.FiniteDuration
+
 /**
-  * Created by Christopher Bradford on 3/31/18.
+  * Converts a Java Duration to a Scala FiniteDuration (used with Timers)
   */
 object DurationConverter {
-  implicit def asFiniteDuration(d: java.time.Duration) =
+  implicit def asFiniteDuration(d: java.time.Duration): FiniteDuration =
     scala.concurrent.duration.Duration.fromNanos(d.toNanos)
 }

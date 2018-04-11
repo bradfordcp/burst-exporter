@@ -5,6 +5,9 @@ import network_monitor.BurstNetworkMonitor
 import pool_monitor.PoolMonitorSupervisor
 import prometheus.MetricsHTTPServer
 
+/**
+  * Top level supervisor, it handles starting all Actors for the monitoring application
+  */
 object BurstExporterSupervisor {
   def props(): Props = Props(new BurstExporterSupervisor)
 
